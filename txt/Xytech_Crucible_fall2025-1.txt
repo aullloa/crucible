@@ -1,0 +1,20 @@
+Xytech Workorder 1267
+
+Producer: Humpty Dumpy
+Operator: Draco Malfoy
+Job: Dirtfixing
+
+
+Location:
+/hpsans18/production/Planeshifter/reel4/partC/1920x1080
+/hpsans17/production/Planeshifter/reel2/VFX/Hydraulx/1920x1080
+/hpsans14/production/Planeshifter/reel1/partB/Hydraulx/1920x1080
+/hpsans13/production/Planeshifter/reel3/VFX/Hydraulx/1920x1080
+/hpsans15/production/Planeshifter/reel4/partB/1920x1080
+/hpsans16/production/Planeshifter/pickups/shot_VFX_Test_1a/1920x1080
+/hpsans18/production/Planeshifter/reel1/partA/1920x1080
+/hpsans17/production/Planeshifter/pickups/shot_VFX_Test_1b/1920x1080
+
+
+Notes:
+Please clean files noted per Colorist Captain Kirk
