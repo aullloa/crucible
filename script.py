@@ -9,6 +9,8 @@ from pymongo import MongoClient, errors
 import ffmpeg
 import vimeo
 import pandas as pd
+from openpyxl import load_workbook
+from openpyxl.drawing.image import Image
 import os
 
 # Argparse functions
@@ -44,8 +46,7 @@ def find_timecode_range(frame):
     end = timecode(post_frame, fps)
     return f"{start}-{end}"
 
-
-client = vimeo.VimeoClient(
+vimeo_client = vimeo.VimeoClient(
     token = "0070400c399f5e91c87ad0e80960999c",
     client_id='6b1666c5d4c95d3ecd5941b8dec63a7dab93112d',
     client_secret='xUzuhK2OYRA2ogYXxZ8eAqouKylGckReL4LJyll4Wg/oXJ4b18bFQIZBY1y7uwjIm+SlMrQgm4VbG/Dg0So3NVV/Z4q0ESksXeFB/42hkH3D9foA9m/7TwAFv72rWsPg',
@@ -140,6 +141,8 @@ if args.output:
             output_folder = "output"
             output_path = os.path.join(output_folder, f"{frame}_thumbnail.png")
             timecode_range = find_timecode_range(frame)
+
+            # export thumbnail
             (
                 ffmpeg
                 .input(args.process, ss=timestamp)
@@ -148,18 +151,52 @@ if args.output:
                 .run()
             )
 
+            # Create clip to upload to Vimeo
+            output_video_path = os.path.join(output_folder, f"{frame}.mp4")
+            start = (frame - 48) / fps
+            end = (frame + 48) / fps
+            duration = end - start
+
+            (
+                ffmpeg
+                .input(args.process, ss=start, t=duration)
+                .output(output_video_path)
+                .overwrite_output()
+                .run()
+            )
+
+            video = vimeo_client.upload(
+                output_video_path,
+                data={
+                    "name": f"Clip for {timecode_range}"
+                }
+            )
+
             rows.append({
                 "Workorder": workorder,
                 "Location": location,
                 "Frame Range": f"{frame - 48} - {frame + 48}",
-                "Timecode Range": timecode_range
+                "Timecode Range": timecode_range,
+                "Thumbnail": output_path,
             })
 
-        df = pd.DataFrame(rows)
-        df.to_excel("output/output.xlsx", index=False)
+    df = pd.DataFrame(rows)
+    df.to_excel("output/output.xlsx", index=False)
 
+    # Adding the thumbnails to excel
+    wb = load_workbook("output/output.xlsx")
+    ws = wb.active
+
+    thumbnails = df.columns.get_loc("Thumbnail") + 1
+
+    for row_idx in range(2, len(df) + 2):
+        img_path = ws.cell(row=row_idx, column=thumbnails).value
+        if img_path and os.path.exists(img_path):
+            img = Image(img_path)
+            img.width = 96
+            img.height = 74
+            ws.add_image(img, ws.cell(row=row_idx, column=thumbnails).coordinate)
+            ws.cell(row=row_idx, column=thumbnails).value = ""
+
+    wb.save("output/output.xlsx")
     print(f"Data exported to file!")
-
-
-
-    
