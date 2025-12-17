@@ -4,16 +4,17 @@
 # The Crucible
 
 import argparse
+import json
 import sys
-import pandas as pd
 from pymongo import MongoClient, errors
+import ffmpeg
 
 
 # Helper methods
 def timecode(frame, fps):
     frames = frame % fps
     total_seconds  = frame // fps
-    seconds = total_seconds % fps
+    seconds = total_seconds % 60
     total_minutes = total_seconds // 60
     minutes = total_minutes % 60
     total_hours = total_minutes // 60
@@ -21,8 +22,9 @@ def timecode(frame, fps):
     return f"{hours:02}:{minutes:02}:{seconds:02}:{frames:02}"
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--baselight", "-bl", action="store", help="input baselight file")
-parser.add_argument("--xytech", "-xt",action="store", help="input xytech file")
+parser.add_argument("--baselight", "-bl", action="store", help="import baselight file into db")
+parser.add_argument("--xytech", "-xt",action="store", help="import xytech file into db")
+parser.add_argument("--process", action="store", help="process video file")
 
 args = parser.parse_args()
 
@@ -75,4 +77,29 @@ if args.xytech:
         print("Could not connect to MongoDB")
         sys.exit(1)
 
+if args.process:
+    baselight_db = database["baselight"]
+    xytech_db = database["xytech"]
+    frames = []
+    fps = 24
+
+    video_data = ffmpeg.probe(args.process)
+    for i in video_data["streams"]:
+        if i["index"] == 0:
+            video_timecode = i["tags"]["timecode"]
+            print(f"Timecode extracted from {args.process} is {video_timecode}")
+
+    # Find all corresponding frames
+    contents = baselight_db.find()
+    for content in contents:
+        folder = content["folder"]
+        if "Planeshifter" in folder:
+            frames.extend(content["frames"])
+
+    for frame in frames:
+        pre_frame = frame - 48
+        post_frame = frame + 48
+        start = timecode(pre_frame, fps)
+        end = timecode(post_frame, fps)
+        print(f"Processing frame {start} to {end}")
 
