@@ -8,6 +8,8 @@ import sys
 from pymongo import MongoClient, errors
 import ffmpeg
 import vimeo
+import pandas as pd
+import os
 
 # Argparse functions
 parser = argparse.ArgumentParser()
@@ -112,6 +114,7 @@ if args.process:
         if i["index"] == 0:
             video_timecode = i["tags"]["timecode"]
             print(f"Timecode extracted from {args.process} is {video_timecode}")
+            print("*" * 40)
 
     # Find all corresponding frames
     contents = baselight_db.find()
@@ -120,10 +123,9 @@ if args.process:
         if "Planeshifter" in folder:
             frames.extend(content["frames"])
 
-    for frame in frames:
-        find_timecode_range(frame)
-
 if args.output:
+    rows = []
+
     for content in baselight_db.find():
         folder = content["folder"]
         frames = content["frames"]
@@ -131,10 +133,33 @@ if args.output:
         workorder, location = find_new_url(folder, xytech_db)
         if workorder is None or location is None:
             continue
+
         for frame in frames:
+            # Obtain thumbnail
+            timestamp = frame / fps
+            output_folder = "output"
+            output_path = os.path.join(output_folder, f"{frame}_thumbnail.png")
             timecode_range = find_timecode_range(frame)
+            (
+                ffmpeg
+                .input(args.process, ss=timestamp)
+                .output(output_path, vframes=1, s="96x74")
+                .overwrite_output()
+                .run()
+            )
 
-        print(f"Processing {timecode_range} for workorder {workorder} to {location}")
-    print("Exporting data into XLS file...")
+            rows.append({
+                "Workorder": workorder,
+                "Location": location,
+                "Frame Range": f"{frame - 48} - {frame + 48}",
+                "Timecode Range": timecode_range
+            })
+
+        df = pd.DataFrame(rows)
+        df.to_excel("output/output.xlsx", index=False)
+
+    print(f"Data exported to file!")
 
 
+
+    
