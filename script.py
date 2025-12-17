@@ -4,11 +4,19 @@
 # The Crucible
 
 import argparse
-import json
 import sys
 from pymongo import MongoClient, errors
 import ffmpeg
+import vimeo
 
+# Argparse functions
+parser = argparse.ArgumentParser()
+parser.add_argument("--baselight", "-bl", action="store", help="import baselight file into db")
+parser.add_argument("--xytech", "-xt",action="store", help="import xytech file into db")
+parser.add_argument("--process", action="store", help="process video file")
+parser.add_argument("--output", action="store_true", help="export data into XLS file")
+
+args = parser.parse_args()
 
 # Helper methods
 def timecode(frame, fps):
@@ -21,17 +29,24 @@ def timecode(frame, fps):
     hours = total_hours % 24
     return f"{hours:02}:{minutes:02}:{seconds:02}:{frames:02}"
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--baselight", "-bl", action="store", help="import baselight file into db")
-parser.add_argument("--xytech", "-xt",action="store", help="import xytech file into db")
-parser.add_argument("--process", action="store", help="process video file")
+def find_new_url(baselight_folder, xytech):
+    for url in xytech.find():
+        if "Planeshifter" in baselight_folder and baselight_folder in url["location"]:
+            return url["Workorder"], url["location"]
+    return None, None
 
-args = parser.parse_args()
+client = vimeo.VimeoClient(
+    token = "0070400c399f5e91c87ad0e80960999c",
+    client_id='6b1666c5d4c95d3ecd5941b8dec63a7dab93112d',
+    client_secret='xUzuhK2OYRA2ogYXxZ8eAqouKylGckReL4LJyll4Wg/oXJ4b18bFQIZBY1y7uwjIm+SlMrQgm4VbG/Dg0So3NVV/Z4q0ESksXeFB/42hkH3D9foA9m/7TwAFv72rWsPg',
+)
 
 # Connect to DB
 client = MongoClient('localhost', 27017)
 database = client["crucible"]
 
+# Import baselight data to DB
+# Excludes preliminary baselight1 directory
 if args.baselight:
     collection_name = "baselight"
     collection = database[collection_name]
@@ -52,6 +67,7 @@ if args.baselight:
         print("Could not connect to MongoDB")
         sys.exit(1)
 
+# Import xytech data to DB
 if args.xytech:
     collection_name = "xytech"
     collection = database[collection_name]
@@ -102,4 +118,17 @@ if args.process:
         start = timecode(pre_frame, fps)
         end = timecode(post_frame, fps)
         print(f"Processing frame {start} to {end}")
+
+if args.output:
+    for content in baselight_db.find():
+        folder = content["folder"]
+        frames = content["frames"]
+
+        workorder, location = find_new_url(folder, xytech_db)
+        if workorder is None or location is None:
+            continue
+
+        print(f"Processing frames {frames} for workorder {workorder} to {location}")
+    print("Exporting data into XLS file...")
+
 
