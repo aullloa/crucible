@@ -35,6 +35,14 @@ def find_new_url(baselight_folder, xytech):
             return url["Workorder"], url["location"]
     return None, None
 
+def find_timecode_range(frame):
+    pre_frame = frame - 48
+    post_frame = frame + 48
+    start = timecode(pre_frame, fps)
+    end = timecode(post_frame, fps)
+    return f"{start}-{end}"
+
+
 client = vimeo.VimeoClient(
     token = "0070400c399f5e91c87ad0e80960999c",
     client_id='6b1666c5d4c95d3ecd5941b8dec63a7dab93112d',
@@ -113,11 +121,7 @@ if args.process:
             frames.extend(content["frames"])
 
     for frame in frames:
-        pre_frame = frame - 48
-        post_frame = frame + 48
-        start = timecode(pre_frame, fps)
-        end = timecode(post_frame, fps)
-        print(f"Processing frame {start} to {end}")
+        find_timecode_range(frame)
 
 if args.output:
     for content in baselight_db.find():
@@ -127,8 +131,10 @@ if args.output:
         workorder, location = find_new_url(folder, xytech_db)
         if workorder is None or location is None:
             continue
+        for frame in frames:
+            timecode_range = find_timecode_range(frame)
 
-        print(f"Processing frames {frames} for workorder {workorder} to {location}")
+        print(f"Processing {timecode_range} for workorder {workorder} to {location}")
     print("Exporting data into XLS file...")
 
 
