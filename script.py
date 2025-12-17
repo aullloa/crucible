@@ -41,11 +41,38 @@ if args.baselight:
             each_line = line.strip().split()
             url = each_line[0].strip("/baselightfilesystem1")
             frames = list(map(int, each_line[1:]))
-            collection.insert_one({"url": url, "frames": frames})
+            collection.insert_one({"folder": url, "frames": frames})
+        print(f"Data from {args.baselight} imported successfully!")
     except FileNotFoundError:
         print(f"{args.baselight} file not found")
         sys.exit(1)
     except errors.ConnectionFailure:
         print("Could not connect to MongoDB")
         sys.exit(1)
+
+if args.xytech:
+    collection_name = "xytech"
+    collection = database[collection_name]
+    try:
+        xytech_file = open(args.xytech, "r")
+        xytech_lines = xytech_file.readlines()
+        for line in xytech_lines:
+            if line.__contains__("Workorder"):
+                workorder_line = line.strip().split()
+                workorder = workorder_line[2]
+                continue
+            each_line = line.strip().split()
+            if not (line.startswith("/")):
+                continue
+            else:
+                url = each_line[0].strip()
+                collection.insert_one({"Workorder": workorder, "location": url})
+        print(f"Data from {args.xytech} imported successfully!")
+    except FileNotFoundError:
+        print(f"{args.xytech} file not found")
+        sys.exit(1)
+    except errors.ConnectionFailure:
+        print("Could not connect to MongoDB")
+        sys.exit(1)
+
 
