@@ -1,3 +1,4 @@
+# *************** START OF CODE ***************
 # Alfredo Ulloa
 # COMP 467
 # Project 4
@@ -35,6 +36,7 @@ client = MongoClient('localhost', 27017)
 database = client["crucible"]
 
 # Helper methods
+# Refactored many after v0.1
 def timecode(frame, fps):
     frames = frame % fps
     total_seconds  = frame // fps
@@ -120,6 +122,15 @@ def create_clip(frame):
     )
     print(f"Clip {timecode_range} created and uploaded successfully!")
 
+def extract_timecode(video_path):
+    video_data = ffmpeg.probe(video_path)
+    for i in video_data["streams"]:
+        if i["index"] == 0:
+            video_timecode = i["tags"]["timecode"]
+            print("*" * 40)
+            print(f"Timecode extracted from {video_path} is {video_timecode}")
+            print("*" * 40)
+
 # Import baselight data to DB
 # Excludes preliminary baselight1 directory
 if args.baselight:
@@ -175,12 +186,7 @@ if args.process:
     fps = 24
 
     # Extract timecode from video
-    video_data = ffmpeg.probe(args.process)
-    for i in video_data["streams"]:
-        if i["index"] == 0:
-            video_timecode = i["tags"]["timecode"]
-            print(f"Timecode extracted from {args.process} is {video_timecode}")
-            print("*" * 40)
+    extract_timecode(args.process)
 
     # Find all data corresponding to video
     contents = baselight_db.find()
@@ -212,14 +218,15 @@ if args.output:
         location = result["location"]
         timecode_range = result["timecode range"]
 
-        thumbnail = create_thumbnail(frame)
+        thumbnail_path = create_thumbnail(frame)
 
         rows.append({
             "Workorder": workorder,
             "Location": location,
+            "Frame": frame,
             "Frame Range": f"{frame - 48} - {frame + 48}",
             "Timecode Range": timecode_range,
-            "Thumbnail": thumbnail,
+            "Thumbnail": thumbnail_path,
         })
 
         create_clip(frame)
@@ -227,10 +234,11 @@ if args.output:
     df = pd.DataFrame(rows)
     df.to_excel("output/output.xlsx", index=False)
 
-    # Adding the thumbnails to excel
+    # Gets thumbnail path from what is found
+    # on xlsx file and embeds into cell,
+    # replacing the path
     wb = load_workbook("output/output.xlsx")
     ws = wb.active
-
     thumbnails = df.columns.get_loc("Thumbnail") + 1
 
     for row in range(2, len(df) + 2):
@@ -246,4 +254,5 @@ if args.output:
     print(f"Data exported output/output.xlsx successfully!")
 
     get_vimeo_data()
+# *************** END OF CODE ***************
 
