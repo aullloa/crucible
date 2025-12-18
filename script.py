@@ -12,6 +12,7 @@ import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.drawing.image import Image
 import os
+import csv
 
 # Argparse functions
 parser = argparse.ArgumentParser()
@@ -151,7 +152,7 @@ if args.output:
                 .run()
             )
 
-            # Create clip to upload to Vimeo
+            # Create clip and upload to Vimeo
             output_video_path = os.path.join(output_folder, f"{frame}.mp4")
             start = (frame - 48) / fps
             end = (frame + 48) / fps
@@ -200,3 +201,29 @@ if args.output:
 
     wb.save("output/output.xlsx")
     print(f"Data exported to file!")
+
+    # Export data from Vimeo account to a csv
+    csv_path = "output/output.csv"
+    with open(csv_path, "w", newline="") as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(["Title", "URI", "Public Link", "Status"])
+
+        response = vimeo_client.get("/me/videos")
+
+        while True:
+            data = response.json()
+            for video in data["data"]:
+                title = video.get("name")
+                uri = video.get("uri")
+                link = video.get("link")
+                status = video.get("status")
+
+                writer.writerow([title, uri, link, status])
+
+            next_page = data.get("paging").get("next")
+            if not next_page:
+                break
+            response = vimeo_client.get(next_page)
+
+    print("Vimeo data exported to csv!")
+
